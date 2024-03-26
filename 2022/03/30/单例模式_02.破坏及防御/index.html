@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+  <!-- 元数据 -->
+  <meta charset="utf-8">
+  <link rel="icon" href="https://raw.githubusercontent.com/evi1j/blog-img/main/GreenDay.jpg">
+  
+  <title>单例模式_02.破坏及防御 | evi1j&#39;s cache</title>
+  
+  <meta name="author" content="evi1j" />
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="robots" content="index,follow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="format-detection" content="telphone=no, email=no" />
+  
+    <meta name="keywords" content="创建型模式, 单例模式, 设计模式笔记" />
+  
+  <meta name="description" content="前言上一篇介绍了单例模式的几种实现，基本可以放在实际开发中使用，但其实有些边界没有被考虑，从而无法保证单例模式的鲁棒性。 介绍几种破坏的方法和对应防御所谓的边界，其实就是那些可以突破单例模式限制，创建多个实例的操作。其实我们已经在第一篇的懒加载实现中介绍过几个。此篇将着重讨论几种破坏单例模式的方式以及防御方式。 反射在第一篇中我们了解到，单例模式下类的构造方法是需要私有化的，避免外部通过 new">
+<meta property="og:type" content="article">
+<meta property="og:title" content="单例模式_02.破坏及防御">
+<meta property="og:url" content="https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/index.html">
+<meta property="og:site_name" content="evi1j&#39;s cache">
+<meta property="og:description" content="前言上一篇介绍了单例模式的几种实现，基本可以放在实际开发中使用，但其实有些边界没有被考虑，从而无法保证单例模式的鲁棒性。 介绍几种破坏的方法和对应防御所谓的边界，其实就是那些可以突破单例模式限制，创建多个实例的操作。其实我们已经在第一篇的懒加载实现中介绍过几个。此篇将着重讨论几种破坏单例模式的方式以及防御方式。 反射在第一篇中我们了解到，单例模式下类的构造方法是需要私有化的，避免外部通过 new">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/Severus%C2%B7Snape.jpg">
+<meta property="article:published_time" content="2022-03-30T09:10:00.000Z">
+<meta property="article:modified_time" content="2022-10-16T14:37:00.000Z">
+<meta property="article:author" content="evi1j">
+<meta property="article:tag" content="设计模式笔记">
+<meta property="article:tag" content="创建型模式">
+<meta property="article:tag" content="单例模式">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/Severus%C2%B7Snape.jpg">
+  <link rel="alternate" href="atom.xml" type="application/atom+xml">
+  <!-- 站点验证相关 -->
+  
+    
+    
+    
+  
+  <!-- 样式表文件 -->
+  <link rel="stylesheet" id="kratos-css" href="/css/kratosr.min.css" media="all"></script>
+  
+    <link rel="stylesheet" id="darkmode-css" href="/css/kr-color-dark.min.css" media="(prefers-color-scheme: dark)"></script>
+    <script src="/js/kr-dark.min.js"></script>
+  
+  
+    <link rel="stylesheet" id="highlight-css" href="/css/highlight/night-eighties.min.css" media="all"></script>
+  
+  <link rel="stylesheet" id="fontawe-css" href="/vendors/font-awesome@4.7.0/css/font-awesome.min.css" media="all"></script>
+  <link rel="stylesheet" id="nprogress-css" href="/vendors/nprogress@0.2.0/nprogress.css" media="all"></script>
+  
+  
+    <link rel="stylesheet" href="/vendors/aplayer@1.10.1/dist/APlayer.min.css"></script>
+  
+  
+    <link rel="stylesheet" href="/vendors/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css"></script>
+  
+  <!-- 不得不预先加载的一些JS文件 -->
+  <script src="/vendors/jquery@3.6.0/dist/jquery.min.js"></script>
+  
+    <script src="/vendors/qrcode_js@1.0.0/qrcode.min.js"></script>
+  
+  
+  <style>
+    
+    
+  </style>
+  
+<meta name="generator" content="Hexo 6.0.0"></head>
+
+
+    <body class="custom-background">
+        <div id="kratos-wrapper">
+    <div id="kratos-page">
+        <div id="kratos-header">
+            <header id="kratos-desktop-topnav" class="kratos-topnav">
+                <div class="container">
+                    <div class="nav-header">
+                        <nav id="kratos-menu-wrap">
+                            <ul id="kratos-primary-menu" class="sf-menu">
+                                
+                                    
+                                        <li>
+                                            
+                                                <a href="/">
+                                            
+                                                
+                                                    <i class="fa fa-home"></i>
+                                                
+                                                首页
+                                            </a>
+                                            
+                                        </li>
+                                    
+                                        <li>
+                                            
+                                                <a href="/archives/">
+                                            
+                                                
+                                                    <i class="fa fa-file"></i>
+                                                
+                                                档案馆
+                                            </a>
+                                            
+                                        </li>
+                                    
+                                        <li>
+                                            
+                                                <a href="/about/">
+                                            
+                                                
+                                                    <i class="fa fa-paper-plane"></i>
+                                                
+                                                关于
+                                            </a>
+                                            
+                                        </li>
+                                    
+                                
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </header>
+            <header id="kratos-mobile-topnav" class="kratos-topnav">
+                <div class="container">
+                    <div class="color-logo"><a href="/">evi1j&#39;s cache</a></div>
+                    <div class="nav-toggle">
+                        <a class="kratos-nav-toggle js-kratos-nav-toggle">
+                            <i></i>
+                        </a>
+                    </div>
+                </div>
+            </header>
+        </div>
+        <div class="kratos-start kratos-hero-2">
+            <!-- <div class="kratos-overlay"></div> -->
+            <div class="kratos-cover kratos-cover-2 text-center">
+                <div class="desc desc2 animate-box">
+                    <a href="/">
+                        <h2>evi1j&#39;s cache</h2> <br />
+                        <span></span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="kratos-blog-post">
+            <div class="container">
+                <div id="main" class="row">
+                    
+
+        
+
+            <section class="col-md-8">
+
+        
+
+            <article itemscope itemtype="https://schema.org/Article">
+    
+    <link itemprop="mainEntityOfPage" href="https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/">
+    <div class="kratos-hentry kratos-post-inner clearfix">
+        <header class="kratos-entry-header">
+            
+                <h1 class="kratos-entry-title text-center" itemprop="name headline">单例模式_02.破坏及防御</h1>
+            
+            
+            <ul class="kratos-post-meta text-center">
+                <li><time datetime="2022-03-30T09:10:00.000Z" itemprop="datePublished"><i class="fa fa-calendar"></i> 2022-03-30</time></li>
+                <li itemprop="author" itemscope itemtype="https://schema.org/Person">
+                    <i class="fa fa-user"></i> 作者 <span itemprop="name">evi1j</span>
+                </li>
+                
+                    <li>
+                        <i class="fa fa-edit"></i> 
+                        
+                        
+                            ~5.38K
+                        
+                        字
+                    </li>
+                
+                
+            </ul>
+        </header>
+        <div class="kratos-post-content">
+            
+            <div id="expire-alert" class="alert alert-warning hidden" role="alert">
+                <div class="icon"><i class="fa fa-warning"></i></div>
+                <div class="text"><p>本文最后编辑于 <time datetime="1665931020000"></time> 前，其中的内容可能需要更新。</p></div>
+            </div>
+            
+            
+            
+                <div class="kratos-post-inner-toc toc-div-class" >
+                    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E8%A8%80"><span class="toc-number">1.</span> <span class="toc-text">前言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8B%E7%BB%8D%E5%87%A0%E7%A7%8D%E7%A0%B4%E5%9D%8F%E7%9A%84%E6%96%B9%E6%B3%95%E5%92%8C%E5%AF%B9%E5%BA%94%E9%98%B2%E5%BE%A1"><span class="toc-number">2.</span> <span class="toc-text">介绍几种破坏的方法和对应防御</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%8D%E5%B0%84"><span class="toc-number">2.1.</span> <span class="toc-text">反射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="toc-number">2.2.</span> <span class="toc-text">反序列化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#clone"><span class="toc-number">2.3.</span> <span class="toc-text">clone</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li></ol>
+                </div>
+            
+            <hr />
+            <div itemprop="articleBody"><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>上一篇介绍了单例模式的几种实现，基本可以放在实际开发中使用，但其实有些边界没有被考虑，从而无法保证单例模式的鲁棒性。</p>
+<h2 id="介绍几种破坏的方法和对应防御"><a href="#介绍几种破坏的方法和对应防御" class="headerlink" title="介绍几种破坏的方法和对应防御"></a>介绍几种破坏的方法和对应防御</h2><p>所谓的边界，其实就是那些可以突破单例模式限制，创建多个实例的操作。其实我们已经在第一篇的懒加载实现中介绍过几个。此篇将着重讨论几种破坏单例模式的方式以及防御方式。</p>
+<h3 id="反射"><a href="#反射" class="headerlink" title="反射"></a>反射</h3><p>在第一篇中我们了解到，单例模式下类的构造方法是需要私有化的，避免外部通过 new 创建实例。但我们忽略了Java有反射这种很开挂的特性。<br>我们以饿汉式为例，准备一个测试方法如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">test_singleton_when_reflect</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    Singleton singleton01 = Singleton.getInstance();</span><br><span class="line">    Constructor&lt;Singleton&gt; constructor = Singleton.class.getDeclaredConstructor(<span class="keyword">null</span>);</span><br><span class="line">    constructor.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">    Singleton singleton02 = constructor.newInstance(<span class="keyword">null</span>);</span><br><span class="line">    Assert.assertSame(<span class="string">&quot;非单例&quot;</span>,singleton01,singleton02);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行后得到的测试结果为:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">java.lang.AssertionError: 非单例 expected same:&lt;singleton.Singleton@6ae40994&gt; was not:&lt;singleton.Singleton@1a93a7ca&gt;</span><br><span class="line">Expected :singleton.Singleton@6ae40994</span><br><span class="line">Actual   :singleton.Singleton@1a93a7ca</span><br></pre></td></tr></table></figure>
+<p>就像是三体中人类举全球力量打造的2000多战舰被三体的一个水滴轻松打败，反射真的是Java中开挂的存在。<br>为了防止这个挂，我们可以对Singleton的构造方法加以强化。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> Singleton instance = <span class="keyword">new</span> Singleton();</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="title">Singleton</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(instance != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(<span class="string">&quot;此单例对象已存在，禁止非法调用构造器！&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Singleton <span class="title">getInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> instance;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再次执行测试方法，就会得到这样的结果:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">java.lang.reflect.InvocationTargetException</span><br><span class="line">    ...</span><br><span class="line">    at singleton.SingletonTest.test_reflect(SingletonTest.java:<span class="number">16</span>)</span><br><span class="line">    ...</span><br><span class="line">Caused by: java.lang.RuntimeException: 此单例对象已存在，禁止非法调用构造器！</span><br><span class="line">    at singleton.Singleton.&lt;init&gt;(Singleton.java:<span class="number">8</span>)</span><br><span class="line">    ... <span class="number">30</span> more</span><br></pre></td></tr></table></figure>
+<p>当通过反射去强行调用构造器时就会在构造中报错，无法完成实例化。</p>
+<h3 id="反序列化"><a href="#反序列化" class="headerlink" title="反序列化"></a>反序列化</h3><p>多数情况下，我们需要把对象的状态信息通过网络进行传输，或者需要将对象的状态信息持久化，以便将来使用时将其进行反序列化。关于序列化可以参考<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/40462507">《序列化理解起来很简单》</a>。<br>这其实也是对单例的保持有破坏的风险。我们通过一个测试方法观察下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">test_singleton_when_serialize</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    Singleton singleton01 = Singleton.getInstance();</span><br><span class="line">    ObjectOutputStream objectOutputStream = <span class="keyword">new</span> ObjectOutputStream(<span class="keyword">new</span> FileOutputStream(<span class="string">&quot;file&quot;</span>));</span><br><span class="line">    objectOutputStream.writeObject(singleton01);</span><br><span class="line">    File file = <span class="keyword">new</span> File(<span class="string">&quot;file&quot;</span>);</span><br><span class="line">    ObjectInputStream objectInputStream = <span class="keyword">new</span> ObjectInputStream(<span class="keyword">new</span> FileInputStream(file));</span><br><span class="line">    Singleton singleton02 = (Singleton) objectInputStream.readObject();</span><br><span class="line">    Assert.assertSame(<span class="string">&quot;非单例&quot;</span>,singleton01,singleton02);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>执行得到结果:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">java.lang.AssertionError: 非单例 expected same:&lt;singleton.Singleton@2b05039f&gt; was not:&lt;singleton.Singleton@<span class="number">21588809</span>&gt;</span><br><span class="line">Expected :singleton.Singleton@2b05039f</span><br><span class="line">Actual   :singleton.Singleton@<span class="number">21588809</span></span><br></pre></td></tr></table></figure>
+<p>此时，代码中将流反序列化为对象的操作，已经破坏了单例模式。所以在涉及到序列化的场景时，要格外注意对单例的破坏。<br>为了保持单例，需要在Singleton中定义readResolve:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span> <span class="keyword">implements</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="function"><span class="keyword">private</span> Object <span class="title">readResolve</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(<span class="string">&quot;单例模式，禁止破坏&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再次执行单元测试，得到下面的结果:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">java.lang.RuntimeException: 单例模式，禁止破坏</span><br><span class="line">	at singleton.Singleton.readResolve(Singleton.java:<span class="number">16</span>)</span><br><span class="line">    ...</span><br><span class="line">	at singleton.SingletonTest.test_singleton_when_serialize(SingletonTest.java:<span class="number">28</span>)</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>前文说到”定义readResolve”,在开始接触单例的资料前确实很迷惑。<br>平时我们接触到的这些不知道从哪儿突然冒出来的吾称为”约定的方法”,都是进行重写。而在这个场景下，Singleton唯一实现的Serializable接口是没有方法的。<br>那为什么说是定义这个方法呢？我们可以单元测试中反序列化操作，即ObjectInputStream的对象执行<code>readObject()</code>方法作为切入点追踪下源码。<br>当追踪到<code>readOrdinaryObject(boolean unshared)</code>方法时，如图所示:</p>
+<img src="/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/img_1.png" class="" title="ObjectOutputStream源码">
+<p>方法体中出现了两个调用:<code>desc.hasReadResolveMethod()</code>和<code>desc.invokeReadResolve(obj)</code><br>理解为对目标流进行检查是否有<code>readResolve()</code>这个方法，如果有就调用。<br>所以在这里说是”定义“其实是比较准确的，一些资料中写”重写readResolve“，个人认为欠妥(支撑这个观点的一个论据是在readResolve方法上显式地加@Override，编译器是会报错的)。</p>
+<h3 id="clone"><a href="#clone" class="headerlink" title="clone"></a>clone</h3><p>还有一种方式可以破坏单例模式，就是通过对象拷贝。<br>需要实现一个Cloneable接口，如果要调用拷贝，需要显式地在Singleton中重写Object类的clone()方法:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span> <span class="keyword">implements</span> <span class="title">Serializable</span>,<span class="title">Cloneable</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> Singleton <span class="title">clone</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (Singleton)<span class="keyword">super</span>.clone();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个对于想实现单例的开发者就很吊诡。<br>既要单例，又要做到对象拷贝。难怪大部分资料称之为主动破坏单例模式。<br>同样，我们通过一个单元测试观察下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">test_singleton_when_clone</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    Singleton singleton01 = Singleton.getInstance();</span><br><span class="line">    Singleton singleton02 = singleton01.clone();</span><br><span class="line">    Assert.assertSame(<span class="string">&quot;非单例&quot;</span>,singleton01,singleton02);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>执行得到结果:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">java.lang.AssertionError: 非单例 expected same:&lt;singleton.Singleton@6ae40994&gt; was not:&lt;singleton.Singleton@1a93a7ca&gt;</span><br><span class="line">Expected :singleton.Singleton@6ae40994</span><br><span class="line">Actual   :singleton.Singleton@1a93a7ca</span><br></pre></td></tr></table></figure>
+<p>那如果想防止这种破坏呢，还是可以在clone()方法中做拦截:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span> <span class="keyword">implements</span> <span class="title">Serializable</span>,<span class="title">Cloneable</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> Singleton <span class="title">clone</span><span class="params">()</span> <span class="keyword">throws</span> CloneNotSupportedException </span>&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(<span class="string">&quot;单例模式，禁止破坏&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再次执行单元测试，就得到:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">java.lang.RuntimeException: 单例模式，禁止破坏</span><br><span class="line"></span><br><span class="line">	at singleton.Singleton.clone(Singleton.java:<span class="number">21</span>)</span><br><span class="line">	at singleton.SingletonTest.test_singleton_when_clone(SingletonTest.java:<span class="number">35</span>)</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>但是，谁会这么无聊，主动去开启破坏然后又拦截掉呢？这不是有病吗？</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇笔记描述了几种破坏单例的方式以及应对，首先需要注意的是上一篇中考量单例模式的第一点就是将构造器私有化，脱离了这个前提，单例形同虚设，也无需谈论什么破坏。<br>我们可以通过强化构造器，对用反射非法实例化的方式进行拦截（本篇主要以饿汉式为例，懒汉式需要通过一个计数器，在构造器中对计数器做Double-Check，计数超过1就抛出异常拦截）。<br>很多时候需要进行对象序列化，在后续反序列化时，也会对单例进行破坏，可以定义一个<code>readResolve()</code>方法,在方法体中拦截破坏。<br>另外一种则是我们主动去实现Cloneable接口，重写Object的<code>clone()</code>方法，去生成另一个实例，称为开发者的”主动破坏”。<br>到此，单例模式的介绍应该结束了。其实还有一个小细节，是我从开始一直在考虑的，即我们在拦截单例破坏时，需要抛出异常呢，还是返回我们原本的单例呢？<br>当然两种都是可以实现的，有些资料中甚至在拦截反序列化时返回实例，在拦截clone()时抛出异常，这就很不能忍。<br>个人观点，当然也已体现在本篇笔记的代码中，还是要保持一致，统一返回单例或者统一抛出异常，在此基础上，我更倾向于抛出异常。因为无论开发者是想通过反射、反序列化还是clone，都期望能得到新的实例。<br>而返回单例在运行时并没有明显的错误，可能只有在业务层面看得到对象所包含的信息的差距，令开发者误解为已经成功破坏了单例。通过报错，可以在运行时提醒开发者快速了解到对于这个类存在使用不当，一定程度上是符合fail-fast原则的。<br>emm。。他们是破坏者啊，为什么要替他们考虑。。。</p>
+</div>
+        </div>
+        
+            <div class="kratos-copyright text-center clearfix">
+                <h5 itemprop="copyrightNotice">本作品采用 <a rel="license nofollow" target="_blank" href="https://creativecommons.org/licenses/by-sa/4.0/">知识共享署名-相同方式共享 4.0 国际许可协议</a> 进行许可</h5>
+            </div>
+        
+        <footer class="kratos-entry-footer clearfix">
+            
+                <div class="post-like-donate text-center clearfix" id="post-like-donate">
+                
+                
+                    <a class="share" href="javascript:;"><i class="fa fa-share-alt"></i> 分享</a>
+                    <div class="share-wrap" style="display: none;">
+    <div class="share-group">
+        <a href="javascript:;" class="share-plain qq" onclick="share('qq');" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-qq"></i>
+            </div>
+        </a>
+        <a href="javascript:;" class="share-plain qzone" onclick="share('qzone');" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-star"></i>
+            </div>
+        </a>
+        <a href="javascript:;" class="share-plain weixin pop style-plain" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-weixin"></i>
+            </div>
+            <div class="share-int">
+                <div class="qrcode" id="wechat-qr"></div>
+                <p>打开微信“扫一扫”，打开网页后点击屏幕右上角分享按钮</p>
+            </div>
+        </a>
+        <a href="javascript:;" class="share-plain weibo" onclick="share('weibo');" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-weibo"></i>
+            </div>
+        </a>
+        <a href="javascript:;" class="share-plain facebook style-plain" onclick="share('facebook');" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-facebook"></i>
+            </div>
+        </a>
+        <a href="javascript:;" class="share-plain twitter style-plain" onclick="share('twitter');" rel="nofollow">
+            <div class="icon-wrap">
+                <i class="fa fa-twitter"></i>
+            </div>
+        </a>
+    </div>
+    <script type="text/javascript">
+        $(()=>{
+            new QRCode("wechat-qr", {
+                text: "https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/",
+                width: 150,
+                height: 150,
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
+        function share(dest) {
+            const qqBase        = "https://connect.qq.com/widget/shareqq/index.html?";
+            const weiboBase     = "https://service.weibo.com/share/share.php?";
+            const qzoneBase     = "https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?";
+            const facebookBase  = "https://www.facebook.com/sharer/sharer.php?";
+            const twitterBase   = "https://twitter.com/intent/tweet?";
+            const hostUrl       = "https://evi1j.github.io/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/";
+            const title         = "「单例模式_02.破坏及防御」";
+            const excerpt       = `前言上一篇介绍了单例模式的几种实现，基本可以放在实际开发中使用，但其实有些边界没有被考虑，从而无法保证单例模式的鲁棒性。
+介绍几种破坏的方法和对应防御所谓的边界，其实就是那些可以突破单例模式限制，创建多个实例的操作。其实我们已经在第一...`;
+            let _URL;
+            switch (dest) {
+                case "qq"       : _URL = qqBase+"url="+hostUrl+"&title="+title+"&desc=&summary="+excerpt+"&site=cxpy";     break;
+                case "weibo"    : _URL = weiboBase+"url="+hostUrl+"&title="+title+excerpt;                                 break;
+                case "qzone"    : _URL = qzoneBase+"url="+hostUrl+"&title="+title+"&desc=&summary="+excerpt+"&site=cxpy";  break;
+                case "facebook" : _URL = facebookBase+"u="+hostUrl;                                                        break;
+                case "twitter"  : _URL = twitterBase+"text="+title+excerpt+"&url="+hostUrl;                                break;
+            }
+            window.open(_URL);
+        };
+    </script>
+</div>
+                
+                </div>
+            
+            <div class="footer-tag clearfix">
+                <div class="pull-left">
+                <i class="fa fa-tags"></i>
+                    <a class="tag-none-link" href="/tags/%E5%88%9B%E5%BB%BA%E5%9E%8B%E6%A8%A1%E5%BC%8F/" rel="tag">创建型模式</a>, <a class="tag-none-link" href="/tags/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F/" rel="tag">单例模式</a>, <a class="tag-none-link" href="/tags/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F%E7%AC%94%E8%AE%B0/" rel="tag">设计模式笔记</a>
+                </div>
+                <div class="pull-date">
+                    <time datetime="2022-10-16T14:37:00.000Z" itemprop="dateModified">最后编辑：2022-10-16</time>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+        <nav class="navigation post-navigation clearfix" role="navigation">
+            
+            <div class="nav-previous clearfix">
+                <a title=" (无标题)" href="/2022/01/26/2022-01-26/">&lt; 上一篇</a>
+            </div>
+            
+            
+        </nav>
+    
+    
+        <link rel="stylesheet" href="/vendors/gitalk@1.7.2/dist/gitalk.css"></script>
+<div id="gitalk-container" class="post-comments lazy-load" style="padding-left:2rem; padding-right:2rem;"></div>
+<script>
+    var load_comm = () => {
+        const init = () => {
+            console.log('Gitalk loading...');
+            const gitalk = new Gitalk(Object.assign({
+                id: '/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/',
+                path: '/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/'
+            }, JSON.parse('{"clientID":"07a85b80ea2b90d4b166","clientSecret":"1d7ebead4f4929820e872d7ebb7e7aa391ae3e06","repo":"evi1j.github.io","owner":"evi1j","admin":["Candinya","evi1j"],"distractionFreeMode":false}')));
+
+            gitalk.render('gitalk-container');
+        }
+        if (typeof Gitalk === 'undefined') {
+            const src = '/vendors/gitalk@1.7.2/dist/gitalk.min.js';
+            $.getScript(src, init);
+        } else {
+            init();
+        }
+    };
+</script>
+<noscript>Please enable JavaScript to view the <a target="_blank" rel="noopener" href="https://github.com/gitalk/gitalk">comments powered by Gitalk.</a></noscript>
+    
+</article>
+
+        
+
+            </section>
+
+        
+
+                
+            
+
+<section id="kratos-widget-area" class="col-md-4 hidden-xs hidden-sm">
+    <!-- 文章和页面根据splitter来分割，没有的话就从头开始设置为sticky -->
+    
+    
+                <aside id="krw-about" class="widget widget-kratos-about clearfix">
+    <div class="photo-background"></div>
+    <div class="photo-wrapper clearfix">
+        <div class="photo-wrapper-tip text-center">
+            <img class="about-photo" src="https://raw.githubusercontent.com/evi1j/blog-img/main/GreenDay.jpg" loading="lazy" decoding="auto" />
+        </div>
+    </div>
+    <div class="textwidget">
+        <p class="text-center">evi1j's cache</p>
+    </div>
+    <div class="site-meta">
+        <a class="meta-item" href="/archives/">
+            <span class="title">
+                文章
+            </span>
+            <span class="count">
+                5
+            </span>
+        </a>
+        <a class="meta-item" href="/categories/">
+            <span class="title">
+                分类
+            </span>
+            <span class="count">
+                0
+            </span>
+        </a>
+        <a class="meta-item" href="/tags/">
+            <span class="title">
+                标签
+            </span>
+            <span class="count">
+                3
+            </span>
+        </a>
+    </div>
+</aside>
+            
+                    <div class="sticky-area">
+                
+                    <aside id="krw-toc" class="widget widget-kratos-toc clearfix toc-div-class" >
+    <div class="photo-background"></div>
+    <h4 class="widget-title no-after">
+        <i class="fa fa-compass"></i>
+        文章目录
+        <span class="toc-progress-bar" role="progressbar" aria-label="阅读进度："></span>
+    </h4>
+    <div class="textwidget">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E8%A8%80"><span class="toc-text">前言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8B%E7%BB%8D%E5%87%A0%E7%A7%8D%E7%A0%B4%E5%9D%8F%E7%9A%84%E6%96%B9%E6%B3%95%E5%92%8C%E5%AF%B9%E5%BA%94%E9%98%B2%E5%BE%A1"><span class="toc-text">介绍几种破坏的方法和对应防御</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%8D%E5%B0%84"><span class="toc-text">反射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96"><span class="toc-text">反序列化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#clone"><span class="toc-text">clone</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+    </div>
+</aside>
+                
+                
+
+            
+                
+  <aside id="krw-tags" class="widget widget-kratos-tags clearfix">
+    <h4 class="widget-title"><i class="fa fa-tags"></i>标签聚合</h4>
+      <div class="tag-clouds">
+        <a href="/tags/%E5%88%9B%E5%BB%BA%E5%9E%8B%E6%A8%A1%E5%BC%8F/" style="font-size: 0.6em;">创建型模式</a> <a href="/tags/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F/" style="font-size: 0.6em;">单例模式</a> <a href="/tags/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F%E7%AC%94%E8%AE%B0/" style="font-size: 0.6em;">设计模式笔记</a>
+      </div>
+  </aside>
+
+            
+                
+  <aside id="krw-posts" class="widget widget-kratos-posts">
+  <h4 class="widget-title"><i class="fa fa-file"></i>最新文章</h4>
+  <div class="tab-content">
+      <ul class="list-group">
+        
+        
+          
+          
+            <a class="list-group-item" href="/2022/03/30/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_02.%E7%A0%B4%E5%9D%8F%E5%8F%8A%E9%98%B2%E5%BE%A1/"><i class="fa  fa-book"></i> 单例模式_02.破坏及防御</a>
+            
+          
+        
+          
+          
+        
+          
+          
+            <a class="list-group-item" href="/2022/01/18/%E5%8D%95%E4%BE%8B%E6%A8%A1%E5%BC%8F_01.%E4%BB%8B%E7%BB%8D%E5%87%A0%E7%A7%8D%E5%AE%9E%E7%8E%B0%E6%96%B9%E5%BC%8F/"><i class="fa  fa-book"></i> 单例模式_01.介绍几种实现方式</a>
+            
+          
+        
+          
+          
+            <a class="list-group-item" href="/2020/04/16/%E5%88%9D%E5%A7%8B%E5%8F%B0%E5%9C%B0/"><i class="fa  fa-book"></i> 初始台地</a>
+            
+          
+        
+          
+          
+            <a class="list-group-item" href="/2020/04/15/%E4%BB%A5%E5%BE%80%E5%BD%92%E6%A1%A3/"><i class="fa  fa-book"></i> 以往归档</a>
+            
+          
+        
+      </ul>
+  </div>
+  </aside>
+
+            
+    </div>
+</section>
+        
+        </div>
+    </div>
+</div>
+<footer>
+    <div id="footer"  class="ap-lrc"  >
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 col-md-offset-3 footer-list text-center">
+                    <ul class="kratos-social-icons">
+                        <!-- Keep for compatibility -->
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        <!-- New links -->
+                        
+                            <li>
+                                <a target="_blank" rel="nofollow" href="https://github.com/evi1j">
+                                    
+                                        <i class="fa fa-github"></i>
+                                    
+                                </a>
+                            </li>
+                        
+                            <li>
+                                <a target="_blank" rel="nofollow" href="/atom.xml">
+                                    
+                                        <i class="fa fa-rss"></i>
+                                    
+                                </a>
+                            </li>
+                        
+                    </ul>
+                    <ul class="kratos-copyright">
+                        <div>
+                            <li>&copy; 2024 evi1j's cache 版权所有.</li>
+                            <li>本站已蹦跶了<span id="span_dt">Loading...</span></li>
+                        </div>
+                        <div>
+                            <li>Theme <a href="https://github.com/Candinya/Kratos-Rebirth" target="_blank">Kratos:Rebirth</a></li>
+                            <li>Site built with&nbsp;<i class="fa fa-heart throb" style="color:#d43f57"></i>&nbsp;by evi1j.</li>
+                        </div>
+                        <div>
+                            <li>Powered by <a href="https://hexo.io" target="_blank" rel="nofollow">Hexo</a></li>
+                            <li>Hosted on <a href="https://github.io" target="_blank">Github Pages</a></li>
+                        </div>
+                        <div>
+                            
+                            
+                        </div>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="kr-tool text-center">
+            <div class="tool">
+                
+                    <div class="box search-box">
+                        <a href="/search/">
+                            <span class="fa fa-search"></span>
+                        </a>
+                    </div>
+                
+                
+                    <div class="box theme-box" id="darkmode-switch">
+                        <span class="fa fa-adjust"></span>
+                    </div>
+                
+                
+                
+            </div>
+            <div class="box gotop-box">
+                <span class="fa fa-chevron-up"></span>
+            </div>
+        </div>
+    </div>
+</footer>
+</div>
+</div>
+
+        <script defer src="/vendors/bootstrap@3.3.4/dist/js/bootstrap.min.js"></script>
+<script defer src="/vendors/nprogress@0.2.0/nprogress.js"></script>
+<script>
+    if (!window.kr) {
+        window.kr = {};
+    }
+    window.kr.notMobile = (!(navigator.userAgent.match(/(phone|pad|pod|iPhone|iPod|ios|iPad|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|JUC|Fennec|wOSBrowser|BrowserNG|WebOS|Symbian|Windows Phone)/i)));
+    window.kr.siteRoot = "/";
+</script>
+
+
+    <script async src="/js/candy.min.js"></script>
+
+
+
+    <script defer src="/vendors/aplayer@1.10.1/dist/APlayer.min.js"></script>
+    
+    <script defer src="/vendors/meting@2.0.1/dist/Meting.min.js"></script>
+    <meting-js
+        server="netease"
+        type="playlist"
+        id="4979968958"
+        order="random"
+        fixed="true"
+    >
+    </meting-js>
+
+
+
+    <script defer src="/vendors/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
+
+<script defer src="/js/kratosr.min.js"></script>
+<script defer src="/js/pjax.min.js"></script>
+
+
+
+<!-- Extra support for third-party plguins  -->
+
+
+    </body>
+</html>
